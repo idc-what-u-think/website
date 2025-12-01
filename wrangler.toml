@@ -1,0 +1,13 @@
+name = "quantumx-website"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quantumx-database"
+database_id = "c02fa26d-a774-4720-93db-139b691d52c3"
+
+[vars]
+ENVIRONMENT = "production"
+
+compatibility_flags = ["nodejs_compat"]
