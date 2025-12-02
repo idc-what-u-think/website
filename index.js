@@ -141,8 +141,23 @@ app.get('/', (c) => {
 
 app.post('/api/auth/google', async (c) => {
   try {
-    const { code } = await c.req.json();
+    console.log('=== Google Auth Request ===');
     
+    const body = await c.req.json();
+    console.log('Request body:', body);
+    const { code } = body;
+    
+    if (!code) {
+      return c.json({ success: false, error: 'No code provided' }, 400);
+    }
+    
+    console.log('Environment check:');
+    console.log('- GOOGLE_CLIENT_ID:', c.env.GOOGLE_CLIENT_ID ? 'Present' : 'Missing');
+    console.log('- GOOGLE_CLIENT_SECRET:', c.env.GOOGLE_CLIENT_SECRET ? 'Present' : 'Missing');
+    console.log('- GOOGLE_REDIRECT_URI:', c.env.GOOGLE_REDIRECT_URI);
+    console.log('- DB:', c.env.DB ? 'Connected' : 'Missing');
+    
+    console.log('Exchanging code with Google...');
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -155,19 +170,30 @@ app.post('/api/auth/google', async (c) => {
       }),
     });
 
+    console.log('Google token response status:', tokenResponse.status);
     const tokens = await tokenResponse.json();
+    console.log('Tokens received:', tokens.access_token ? 'Yes' : 'No');
+    
+    if (tokens.error) {
+      console.error('Google OAuth error:', tokens.error);
+      return c.json({ success: false, error: tokens.error_description || tokens.error }, 400);
+    }
 
+    console.log('Fetching user info from Google...');
     const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
     const googleUser = await userResponse.json();
+    console.log('Google user:', googleUser.email);
 
+    console.log('Checking database for existing user...');
     let user = await c.env.DB.prepare(
       'SELECT * FROM users WHERE google_id = ?'
     ).bind(googleUser.id).first();
 
     if (!user) {
+      console.log('Creating new user...');
       const userId = generateId('user');
       await c.env.DB.prepare(
         `INSERT INTO users (id, google_id, email, display_name, profile_picture, created_at)
@@ -175,6 +201,9 @@ app.post('/api/auth/google', async (c) => {
       ).bind(userId, googleUser.id, googleUser.email, googleUser.name, googleUser.picture).run();
 
       user = { id: userId, google_id: googleUser.id, email: googleUser.email };
+      console.log('New user created:', userId);
+    } else {
+      console.log('Existing user found:', user.id);
     }
 
     const token = btoa(JSON.stringify({ 
@@ -183,6 +212,7 @@ app.post('/api/auth/google', async (c) => {
       isAdmin: false 
     }));
 
+    console.log('Auth successful, returning token');
     return c.json({ 
       success: true, 
       token, 
@@ -196,7 +226,8 @@ app.post('/api/auth/google', async (c) => {
     });
 
   } catch (error) {
-    return c.json({ error: 'Authentication failed' }, 500);
+    console.error('Auth error:', error);
+    return c.json({ success: false, error: error.message || 'Authentication failed' }, 500);
   }
 });
 
