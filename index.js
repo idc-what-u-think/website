@@ -4,9 +4,10 @@ import { cors } from 'hono/cors';
 const app = new Hono();
 
 app.use("*", cors({
-  origin: "*",
+  origin: ["https://quantumx-bot.vercel.app", "http://localhost:3000"],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+  credentials: true,
 }));
 
 function generateId(prefix = 'id') {
