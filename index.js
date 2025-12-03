@@ -3,7 +3,11 @@ import { cors } from 'hono/cors';
 
 const app = new Hono();
 
-app.use('*', cors());
+app.use("*", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+}));
 
 function generateId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
